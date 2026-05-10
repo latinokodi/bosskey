@@ -159,11 +159,13 @@ class BossKeyEngine:
     # ------------------------------------------------------------------
 
     def _on_hotkey(self) -> None:
-        with self._lock:
-            if self._hidden:
-                self._restore_all()
-            else:
-                self._hide_targets()
+        def _task():
+            with self._lock:
+                if self._hidden:
+                    self._restore_all()
+                else:
+                    self._hide_targets()
+        threading.Thread(target=_task, daemon=True).start()
 
     def _hide_targets(self) -> None:
         """Hide windows currently tracked OR all visible app windows."""
@@ -183,15 +185,15 @@ class BossKeyEngine:
     def _get_target_hwnds(self) -> list[tuple[int, str]]:
         """
         Return (hwnd, title) pairs for windows that should be hidden.
-        Matches by window title. Falls back to hiding all visible windows
-        when no titles are selected.
+        Matches by executable name to ensure reliability even when window titles change
+        (e.g. when a new video is played or a new tab is opened).
         """
-        selected_titles = set(self.config.get("selected_titles", []))
+        selected_exes = {e.lower() for e in self.config.get("selected_exes", [])}
         visible = get_visible_windows()
 
-        if selected_titles:
+        if selected_exes:
             return [(w["hwnd"], w["title"]) for w in visible
-                    if w["title"] in selected_titles]
+                    if w["exe"].lower() in selected_exes]
         # No selection → hide everything visible (full boss-mode)
         return [(w["hwnd"], w["title"]) for w in visible]
 
@@ -498,17 +500,27 @@ class BossKeyGUI:
         self._window_vars.clear()
 
         self._visible_windows = get_visible_windows()
-        selected_titles = set(self.engine.config.get("selected_titles", []))
-        # Exclude the BossKey settings window itself
-        own_title = "BossKey – Settings"
+        selected_exes = {e.lower() for e in self.engine.config.get("selected_exes", [])}
+
+        # Deduplicate: one checkbox row per unique exe
+        seen_exes: set[str] = set()
+        
+        # Exclude our own app
+        own_pid = os.getpid()
 
         for w in self._visible_windows:
-            title = w["title"]
-            if title == own_title:
+            # We don't have PID in w directly, but we don't want to hide ourselves.
+            # We'll just exclude python.exe/bosskey.exe if it matches our title.
+            if w["title"] == "BossKey – Settings":
                 continue
 
-            var = tk.BooleanVar(value=title in selected_titles)
-            self._window_vars[title] = var
+            exe_key = w["exe"].lower()
+            if exe_key in seen_exes:
+                continue
+            seen_exes.add(exe_key)
+
+            var = tk.BooleanVar(value=exe_key in selected_exes)
+            self._window_vars[exe_key] = var
 
             row = tk.Frame(self._window_frame, bg=BG2)
             row.pack(fill="x", padx=4, pady=2)
@@ -518,21 +530,24 @@ class BossKeyGUI:
                 bg=BG2, fg=TEXT, selectcolor=BG3,
                 activebackground=BG2, activeforeground=ACCENT,
                 relief="flat", cursor="hand2",
-                command=self._autosave,   # save on every toggle
+                command=self._autosave,
             )
             cb.pack(side="left")
 
-            # Exe badge (context only)
+            # App executable name
             tk.Label(
-                row, text=f"[{w['exe']}]",
-                font=("Consolas", 8), bg=BG2, fg=ACCENT2, width=16, anchor="w",
+                row, text=f"{w['exe']}",
+                font=("Consolas", 10, "bold"), bg=BG2, fg=ACCENT2, anchor="w",
             ).pack(side="left", padx=(0, 6))
 
-            # Window title
-            display = title[:52] + "…" if len(title) > 52 else title
+            # Window count
+            count = sum(1 for x in self._visible_windows if x["exe"].lower() == exe_key)
+            title_sample = w["title"][:40] + "…" if len(w["title"]) > 40 else w["title"]
+            
+            info_text = f"({count} window{'s' if count != 1 else ''}) - e.g. {title_sample}"
             tk.Label(
-                row, text=display,
-                font=("Segoe UI", 9), bg=BG2, fg=TEXT, anchor="w",
+                row, text=info_text,
+                font=("Segoe UI", 9), bg=BG2, fg=TEXT2, anchor="w",
             ).pack(side="left", fill="x", expand=True)
 
     def _clear_selection(self) -> None:
@@ -642,8 +657,8 @@ class BossKeyGUI:
 
     def _autosave(self) -> None:
         """Persist the current checkbox state immediately."""
-        selected_titles = [t for t, var in self._window_vars.items() if var.get()]
-        self.engine.config["selected_titles"] = selected_titles
+        selected_exes = [exe for exe, var in self._window_vars.items() if var.get()]
+        self.engine.config["selected_exes"] = selected_exes
         save_config(self.engine.config)
 
     def _save_and_close(self) -> None:
