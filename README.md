@@ -8,24 +8,21 @@
 
 ## Features
 
-- **Global hotkey** — press once to hide selected windows, press again to restore them
-- **Window picker** — choose exactly which windows to hide, or leave empty to hide everything visible
-- **System tray** — runs silently in the background; right-click tray icon for menu
-- **Persistent config** — settings saved to `config.json`
-- **Dark premium UI** — sleek dark settings panel built with tkinter
-- **Safe exit** — all hidden windows are restored when BossKey quits
+- **Single-key hotkey** — assign any key (F12, Pause, etc.) to toggle visibility instantly.
+- **Title-based selection** — choose exactly which windows to hide by their visible titles.
+- **Auto-save** — selections are saved immediately as you toggle them.
+- **System tray** — runs silently; right-click tray icon for menu or to open settings.
+- **Minimize to tray** — closing or minimizing the settings window hides it to the tray.
+- **Dark premium UI** — sleek dark mode settings panel built with tkinter.
+- **Safe exit** — all hidden windows are restored when BossKey quits.
 
 ---
 
 ## Quick Start
 
-### 1. Setup environment (first time only)
+### 1. Run BossKey
 
-```bat
-setup_venv.bat
-```
-
-### 2. Run BossKey
+Just run the batch file. It will automatically create the virtual environment, install dependencies, and start the app.
 
 ```bat
 run.bat          # silent (no console window)
@@ -34,20 +31,12 @@ run_debug.bat    # with console for log output
 
 ---
 
-## Default Hotkey
-
-`Ctrl + Shift + B`
-
-Change it anytime via **Settings → Hotkey → Apply**.
-
----
-
 ## How it works
 
 | Action | Result |
 |---|---|
-| Press hotkey (windows visible) | Hides selected / all windows |
-| Press hotkey again (windows hidden) | Restores all hidden windows |
+| Click Hotkey Field | Enter "Recording" mode to assign a new key |
+| Press assigned key | Toggle visibility of selected windows |
 | Tray → "Show/Hide windows" | Same as hotkey |
 | Tray → "Settings…" | Open settings GUI |
 | Tray → "Quit" | Restore all windows and exit |
@@ -59,27 +48,13 @@ Change it anytime via **Settings → Hotkey → Apply**.
 ```
 bosskey/
 ├── bosskey.py        # Main application
-├── bosskey_icon.png  # App icon (PNG)
-├── convert_icon.py   # PNG → ICO converter utility
+├── bosskey_icon.png  # App icon
 ├── config.json       # Runtime config (auto-created)
 ├── requirements.txt  # Python dependencies
-├── setup_venv.bat    # One-time environment setup
-├── run.bat           # Silent launcher
-├── run_debug.bat     # Debug launcher (shows console)
-└── venv/             # Isolated virtual environment
+├── run.bat           # Auto-setup & Silent launcher
+├── run_debug.bat     # Auto-setup & Debug launcher
+└── venv/             # Isolated virtual environment (auto-created)
 ```
-
----
-
-## Dependencies
-
-| Package | Purpose |
-|---|---|
-| `pystray` | System tray icon |
-| `keyboard` | Global hotkey listener |
-| `pywin32` | Windows API (hide/show windows) |
-| `Pillow` | Image handling for tray icon |
-| `psutil` | Process name resolution |
 
 ---
 
@@ -87,16 +62,14 @@ bosskey/
 
 ```json
 {
-  "hotkey": "ctrl+shift+b",
-  "selected_hwnds": [],
-  "pinned_windows": [],
+  "hotkey": "scroll lock",
+  "selected_titles": [],
   "start_minimised": true
 }
 ```
 
-- `hotkey` — keyboard shortcut string
-- `selected_hwnds` — specific window handles to manage (set via GUI)
-- `pinned_windows` — list of exe names to always target (e.g. `["chrome.exe"]`)
+- `hotkey` — single key name
+- `selected_titles` — list of window titles to manage
 - `start_minimised` — if `true`, starts without showing settings window
 
 ---
@@ -105,3 +78,4 @@ bosskey/
 
 - Windows 10 / 11
 - Python 3.9+
+
